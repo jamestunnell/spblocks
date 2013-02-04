@@ -1,0 +1,27 @@
+= spblocks
+
+* {Homepage}[https://rubygems.org/gems/spblocks]
+* {Documentation}[http://rubydoc.info/gems/spblocks/frames]
+* {Email}[mailto:jamestunnell at lavabit.com]
+
+== Description
+
+Takes the basic signal processing functions found in the splib gem, and contains them in blocks as defined spnet gem.
+
+== Features
+
+== Examples
+
+  require 'spblocks'
+
+== Requirements
+
+== Install
+
+  $ gem install spblocks
+
+== Copyright
+
+Copyright (c) 2013 James Tunnell
+
+See LICENSE.txt for details.
