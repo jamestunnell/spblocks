@@ -1,4 +1,4 @@
 require 'rspec'
-require 'spblocks/version'
+require 'spblocks'
 
-include Spblocks
+include SPBlocks

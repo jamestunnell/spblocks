@@ -2,3 +2,8 @@ Gemfile.lock
 doc/
 pkg/
 vendor/cache/*.gem
+
+# YARD artifacts
+.yardoc
+_yardoc
+doc/
