@@ -6,7 +6,7 @@
 
 == Description
 
-Takes the basic signal processing functions found in the splib gem, and contains them in blocks as defined spnet gem.
+Takes the basic signal processing functions found in the splib gem, and contains them in blocks as defined in the spnet gem.
 
 == Features
 
