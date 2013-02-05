@@ -2,7 +2,7 @@ require 'spnet'
 require 'wavefile'
 
 module SPBlocks
-class FileOutBlock < SPNet::Block
+class WavOutBlock < SPNet::Block
 
   include Hashmake::HashMakeable
   
