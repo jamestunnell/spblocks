@@ -9,9 +9,7 @@ describe SPBlocks::WavOutBlock do
       values = [0.1,0.2,0.3,0.4,0.5]
       block.find_first_port("INPUT").enqueue_values values
       block.step values.count
-      block.close
-      #close_msg = SPBlocks::CommandMessage.new :command => SPBlocks::FileOutBlock::CLOSE
-      #block.find_first_port("COMMANDS").recv_message close_msg
+      block.find_first_port("FILE").exec_command :close, nil
       
       reader = WaveFile::Reader.new(filename).each_buffer(values.size) do |buffer|
         converted_samples = buffer.samples.map {|sample| sample.to_f / SPBlocks::WavOutBlock::MAX_SAMPLE_VALUE }

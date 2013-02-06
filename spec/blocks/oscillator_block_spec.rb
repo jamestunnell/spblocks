@@ -4,15 +4,12 @@ require 'spcore'
 describe SPBlocks::OscillatorBlock do
   def set_port_value block, port_name, value
     port = block.find_first_port(port_name)
-    set_msg = SPNet::ControlMessage.make_set_message value
-    return port.recv_message set_msg
+    return port.set_value value
   end
   
   def get_port_value block, port_name
     port = block.find_first_port(port_name)
-    get_msg = SPNet::ControlMessage.make_get_message
-    port.recv_message get_msg
-    return get_msg.data
+    return port.get_value
   end
 
   before :all do

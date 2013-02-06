@@ -10,24 +10,13 @@ class WavOutBlock < SPNet::Block
     Hashmake::ArgSpec.new(:reqd => true, :key => :sample_rate, :type => Float, :validator => ->(a){ (a > 0.0) && (a.to_i == a)} ),
     Hashmake::ArgSpec.new(:reqd => true, :key => :file_name, :type => String, :validator => ->(a){ !a.empty?() } ),
   ]
+  
+  attr_reader :file_name
 
   BITS_PER_SAMPLE = 32
   MAX_SAMPLE_VALUE = (2 **(0.size * 8 - 2) - 2)
 
-  def close
-    @writer.close
-  end
-  
-  def closed?
-    @writer.closed?
-  end
-  
-  def open
-    unless closed?
-      close
-    end
-    @writer = WaveFile::Writer.new(@file_name, @format)
-  end
+  FILE_COMMANDS = [ :open, :close ]
   
   def initialize hashed_args = {}
     hash_make HASHED_ARG_SPECS, hashed_args
@@ -36,9 +25,29 @@ class WavOutBlock < SPNet::Block
     @writer = WaveFile::Writer.new(@file_name, @format)
 
     input = SPNet::SignalInPort.new(:name => "INPUT", :limits => (-1.0...1.0))
+    
+    exec_command_handler = lambda do |command,data|
+      case command
+      when :close
+        @writer.close
+      when :open
+        unless @writer.closed?
+          @writer.close
+        end
+        @file_name = data
+        @writer = WaveFile::Writer.new(@file_name, @format)
+      end
+    end
+    
+    file = SPNet::CommandInPort.new(
+      :name => "FILE",
+      :list_commands_handler => lambda { FILE_COMMANDS },
+      :exec_command_handler => exec_command_handler
+    )
+    
     algorithm = lambda do |count|
       values = input.dequeue_values count
-      unless closed?
+      unless @writer.closed?
         int_values = values.map { |value| (value * MAX_SAMPLE_VALUE).to_i }
         buffer = WaveFile::Buffer.new(int_values, @format)
         @writer.write(buffer)
@@ -46,12 +55,10 @@ class WavOutBlock < SPNet::Block
     end
 
     super_args = {
-      :name => "FILE_IN",
+      :name => "WAV_OUT",
       :algorithm => algorithm,
-      :signal_in_ports => [ input ],
-      :signal_out_ports => [ ],
-      :message_in_ports => [ ],
-      :message_out_ports => [ ]
+      :in_ports => [ input, file ],
+      :out_ports => [ ],
     }
     super(super_args)
 

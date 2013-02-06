@@ -7,22 +7,22 @@ class EnvelopeDetectorBlock < SPNet::Block
   def initialize hashed_args = {}
     @env_detector = SPCore::EnvelopeDetector.new(hashed_args)
     
-    attack_time_limiter = SPCore::Limiters.make_lower_limiter(0.0)
-    attack_time_handler = SPNet::ControlMessage.make_handler(
-      lambda {|message| message.data = @env_detector.attack_time },
-      lambda { |message| @env_detector.attack_time = attack_time_limiter.call(message.data) }
-    )
-
-    release_time_limiter = SPCore::Limiters.make_lower_limiter(0.0)
-    release_time_handler = SPNet::ControlMessage.make_handler(
-      lambda {|message| message.data = @env_detector.release_time },
-      lambda { |message| @env_detector.release_time = release_time_limiter.call(message.data) }
-    )
-    
     input = SPNet::SignalInPort.new(:name => "INPUT")
     output = SPNet::SignalOutPort.new(:name => "OUTPUT")
-    release_time = SPNet::MessageInPort.new(:name => "RELEASE_TIME", :message_type => SPNet::Message::CONTROL, :processor => release_time_handler)
-    attack_time = SPNet::MessageInPort.new(:name => "ATTACK_TIME", :message_type => SPNet::Message::CONTROL, :processor => attack_time_handler)
+    
+    release_time_limiter = SPCore::Limiters.make_lower_limiter(0.0)
+    release_time = SPNet::ValueInPort.new(
+      :name => "RELEASE_TIME",
+      :get_value_handler => lambda { @env_detector.release_time},
+      :set_value_handler => lambda { |value| @env_detector.release_time = release_time_limiter.call(value) }
+    )
+    
+    attack_time_limiter = SPCore::Limiters.make_lower_limiter(0.0)
+    attack_time = SPNet::ValueInPort.new(
+      :name => "ATTACK_TIME",
+      :get_value_handler => lambda { @env_detector.attack_time},
+      :set_value_handler => lambda { |value| @env_detector.attack_time = attack_time_limiter.call(value) }
+    )
     
     algorithm = lambda do |count|
       values = input.dequeue_values count
@@ -35,10 +35,8 @@ class EnvelopeDetectorBlock < SPNet::Block
     super_args = {
       :name => "ENVELOPE_DETECTOR",
       :algorithm => algorithm,
-      :signal_in_ports => [ input ],
-      :signal_out_ports => [ output ],
-      :message_in_ports => [ attack_time, release_time ],
-      :message_out_ports => []
+      :in_ports => [ input, attack_time, release_time ],
+      :out_ports => [ output ],
     }
     super(super_args)
   end

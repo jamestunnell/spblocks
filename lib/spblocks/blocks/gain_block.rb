@@ -15,22 +15,16 @@ class GainBlock < SPNet::Block
   def initialize args = {}
     hash_make HASHED_ARG_SPECS, args
     @gain_linear = SPCore::Gain.db_to_linear @gain_db
-    
-    limiter = SPCore::Limiters.make_range_limiter(GAIN_MIN..GAIN_MAX)
-    set_gain_db_handler = lambda do |message|
-      @gain_db = limiter.call(message.data)
-      @gain_linear = SPCore::Gain.db_to_linear @gain_db
-    end
-    
-    get_gain_db_handler = lambda do |message|
-      message.data = @gain_db
-    end
-    
-    gain_db_handler = SPNet::ControlMessage.make_handler get_gain_db_handler, set_gain_db_handler
-    
+
     input = SPNet::SignalInPort.new(:name => "INPUT")
     output = SPNet::SignalOutPort.new(:name => "OUTPUT")
-    gain_db = SPNet::MessageInPort.new(:name => "GAIN_DB", :message_type => SPNet::Message::CONTROL, :processor => gain_db_handler)
+    
+    limiter = SPCore::Limiters.make_range_limiter(GAIN_MIN..GAIN_MAX)
+    gain_db = SPNet::ValueInPort.new(
+      :name => "GAIN_DB", 
+      :get_value_handler => lambda { @gain_db },
+      :set_value_handler => lambda {|value| @gain_db = limiter.call(value); @gain_linear = SPCore::Gain.db_to_linear @gain_db }
+    )
     
     algorithm = lambda do |count|
       values = input.dequeue_values count
@@ -43,10 +37,8 @@ class GainBlock < SPNet::Block
     super_args = {
       :name => "GAIN",
       :algorithm => algorithm,
-      :signal_in_ports => [ input ],
-      :signal_out_ports => [ output ],
-      :message_in_ports => [ gain_db ],
-      :message_out_ports => []
+      :in_ports => [ input, gain_db ],
+      :out_ports => [ output ],
     }
     super(super_args)
   end

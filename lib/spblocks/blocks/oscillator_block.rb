@@ -7,39 +7,39 @@ class OscillatorBlock < SPNet::Block
   def initialize hashed_args = {}
     @oscillator = SPCore::Oscillator.new(hashed_args)
 
+    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
+    
     wave_type_limiter = SPCore::Limiters.make_enum_limiter(SPCore::Oscillator::WAVES)
-    wave_type_handler = SPNet::ControlMessage.make_handler(
-      lambda { |message| message.data = @oscillator.wave_type },
-      lambda { |message| @oscillator.wave_type = wave_type_limiter.call(message.data, @oscillator.wave_type) }
+    wave_type = SPNet::ValueInPort.new(
+      :name => "WAVE_TYPE",
+      :get_value_handler => lambda { @oscillator.wave_type },
+      :set_value_handler => lambda { |value| @oscillator.wave_type = wave_type_limiter.call(value, @oscillator.wave_type) }
     )
     
     freq_limiter = SPCore::Limiters.make_range_limiter(0.01..(@oscillator.sample_rate / 2.0))
-    freq_handler = SPNet::ControlMessage.make_handler(
-      lambda { |message| message.data = @oscillator.frequency },
-      lambda { |message| @oscillator.frequency = freq_limiter.call(message.data) }
+    frequency = SPNet::ValueInPort.new(
+      :name => "FREQUENCY",
+      :get_value_handler => lambda { @oscillator.frequency },
+      :set_value_handler => lambda { |value| @oscillator.frequency = freq_limiter.call(value) }
     )
 
-    ampl_handler = SPNet::ControlMessage.make_handler(
-      lambda { |message| message.data = @oscillator.amplitude },
-      lambda { |message| @oscillator.amplitude = message.data }
-    )
-
-    phase_handler = SPNet::ControlMessage.make_handler(
-      lambda { |message| message.data = @oscillator.phase_offset },
-      lambda { |message| @oscillator.phase_offset = message.data }
-    )
-
-    dc_handler = SPNet::ControlMessage.make_handler(
-      lambda { |message| message.data = @oscillator.dc_offset },
-      lambda { |message| @oscillator.dc_offset = message.data }
+    amplitude = SPNet::ValueInPort.new(
+      :name => "AMPLITUDE",
+      :get_value_handler => lambda { @oscillator.amplitude },
+      :set_value_handler => lambda { |value| @oscillator.amplitude = value }
     )
     
-    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
-    wave_type = SPNet::MessageInPort.new(:name => "WAVE_TYPE", :message_type => SPNet::Message::CONTROL, :processor => wave_type_handler)
-    frequency = SPNet::MessageInPort.new(:name => "FREQUENCY", :message_type => SPNet::Message::CONTROL, :processor => freq_handler)
-    amplitude = SPNet::MessageInPort.new(:name => "AMPLITUDE", :message_type => SPNet::Message::CONTROL, :processor => ampl_handler)
-    phase_offset = SPNet::MessageInPort.new(:name => "PHASE_OFFSET", :message_type => SPNet::Message::CONTROL, :processor => phase_handler)
-    dc_offset = SPNet::MessageInPort.new(:name => "DC_OFFSET", :message_type => SPNet::Message::CONTROL, :processor => dc_handler)
+    phase_offset = SPNet::ValueInPort.new(
+      :name => "PHASE_OFFSET",
+      :get_value_handler => lambda { @oscillator.phase_offset },
+      :set_value_handler => lambda { |value| @oscillator.phase_offset = value }
+    )
+    
+    dc_offset = SPNet::ValueInPort.new(
+      :name => "DC_OFFSET",
+      :get_value_handler => lambda { @oscillator.dc_offset },
+      :set_value_handler => lambda { |value| @oscillator.dc_offset = value }
+    )
     
     algorithm = lambda do |count|
       values = Array.new(count)
@@ -52,10 +52,8 @@ class OscillatorBlock < SPNet::Block
     super_args = {
       :name => "DELAY",
       :algorithm => algorithm,
-      :signal_in_ports => [ ],
-      :signal_out_ports => [ output ],
-      :message_in_ports => [ wave_type, frequency, amplitude, phase_offset, dc_offset ],
-      :message_out_ports => []
+      :in_ports => [ wave_type, frequency, amplitude, phase_offset, dc_offset ],
+      :out_ports => [ output ],
     }
     super(super_args)
   end

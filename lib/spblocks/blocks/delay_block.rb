@@ -16,29 +16,29 @@ class DelayBlock < SPNet::Block
     
     @delay_line = SPCore::DelayLine.new(hashed_args)
     
+    input = SPNet::SignalInPort.new(:name => "INPUT")
+    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
+    
     delay_limiter = SPCore::Limiters.make_range_limiter(0.0..@delay_line.max_delay_seconds)
-    delay_sec_handler = SPNet::ControlMessage.make_handler(
-      lambda {|message| message.data = @delay_line.delay_seconds },
-      lambda { |message| @delay_line.delay_seconds = delay_limiter.call(message.data) }
+    delay_sec = SPNet::ValueInPort.new(
+      :name => "DELAY_SEC",
+      :get_value_handler => lambda { @delay_line.delay_seconds },
+      :set_value_handler => lambda { |value| @delay_line.delay_seconds = delay_limiter.call(value) }
     )
-
+    
     feedback_limiter = SPCore::Limiters.make_range_limiter(0.0..1.0)
-    feedback_handler = SPNet::ControlMessage.make_handler(
-      lambda {|message| message.data = @feedback },
-      lambda { |message| @feedback = feedback_limiter.call(message.data) }
+    feedback = SPNet::ValueInPort.new(
+      :name => "FEEDBACK",
+      :get_value_handler => lambda { @feedback },
+      :set_value_handler => lambda { |value| @feedback = feedback_limiter.call(value) }
     )
     
     mix_limiter = SPCore::Limiters.make_range_limiter(0.0..1.0)
-    mix_handler = SPNet::ControlMessage.make_handler(
-      lambda {|message| message.data = @mix },
-      lambda { |message| @mix = mix_limiter.call(message.data) }
+    mix = SPNet::ValueInPort.new(
+      :name => "MIX",
+      :get_value_handler => lambda { @mix },
+      :set_value_handler => lambda { |value| @mix = mix_limiter.call(value) }
     )
-    
-    input = SPNet::SignalInPort.new(:name => "INPUT")
-    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
-    delay_sec = SPNet::MessageInPort.new(:name => "DELAY_SEC", :message_type => SPNet::Message::CONTROL, :processor => delay_sec_handler)
-    feedback = SPNet::MessageInPort.new(:name => "FEEDBACK", :message_type => SPNet::Message::CONTROL, :processor => feedback_handler)
-    mix = SPNet::MessageInPort.new(:name => "MIX", :message_type => SPNet::Message::CONTROL, :processor => mix_handler)
     
     algorithm = lambda do |count|
       values = input.dequeue_values count
@@ -55,10 +55,8 @@ class DelayBlock < SPNet::Block
     super_args = {
       :name => "DELAY",
       :algorithm => algorithm,
-      :signal_in_ports => [ input ],
-      :signal_out_ports => [ output ],
-      :message_in_ports => [ delay_sec, feedback, mix ],
-      :message_out_ports => []
+      :in_ports => [ input, delay_sec, feedback, mix ],
+      :out_ports => [ output ],
     }
     super(super_args)
   end
