@@ -25,24 +25,19 @@ class WavOutBlock < SPNet::Block
     @writer = WaveFile::Writer.new(@file_name, @format)
 
     input = SPNet::SignalInPort.new(:name => "INPUT", :limits => (-1.0...1.0))
-    
-    exec_command_handler = lambda do |command,data|
-      case command
-      when :close
-        @writer.close
-      when :open
-        unless @writer.closed?
-          @writer.close
-        end
-        @file_name = data
-        @writer = WaveFile::Writer.new(@file_name, @format)
-      end
-    end
-    
+
     file = SPNet::CommandInPort.new(
       :name => "FILE",
-      :list_commands_handler => lambda { FILE_COMMANDS },
-      :exec_command_handler => exec_command_handler
+      :command_map => {
+        :open => lambda do |data|
+          unless @writer.closed?
+            @writer.close
+          end
+          @file_name = data
+          @writer = WaveFile::Writer.new(@file_name, @format)          
+        end,
+        :close => lambda {|data| @writer.close }
+      }
     )
     
     algorithm = lambda do |count|
