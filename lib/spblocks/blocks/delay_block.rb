@@ -1,43 +1,40 @@
 require 'spnet'
 require 'spcore'
 
+include SPNet
+
 module SPBlocks
-class DelayBlock < SPNet::Block
+class DelayBlock < Block
 
-  include Hashmake::HashMakeable
+  MAX_DELAY_SECONDS = 10.0
   
-  HASHED_ARG_SPECS = [
-    Hashmake::ArgSpec.new(:reqd => false, :key => :feedback, :type => Numeric, :default => 0.0, :validator => ->(a){ a.between? 0.0, 1.0 } ),
-    Hashmake::ArgSpec.new(:reqd => false, :key => :mix, :type => Numeric, :default => 1.0, :validator => ->(a){ a.between? 0.0, 1.0 } ),
-  ]
-
-  def initialize hashed_args = {}
-    hash_make DelayBlock::HASHED_ARG_SPECS, hashed_args
+  def initialize args
+    raise ArgumentError, "args does not have :sample_rate key" unless args.has_key?(:sample_rate)
+    @delay_line = SPCore::DelayLine.new(:sample_rate => args[:sample_rate], :max_delay_seconds => MAX_DELAY_SECONDS)
+    @feedback = 0.0
+    @mix = 0.0
     
-    @delay_line = SPCore::DelayLine.new(hashed_args)
+    input = SignalInPort.new()
+    output = SignalOutPort.new()
     
-    input = SPNet::SignalInPort.new(:name => "INPUT")
-    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
+    max_delay_sec = @delay_line.max_delay_seconds
     
-    delay_limiter = SPCore::Limiters.make_range_limiter(0.0..@delay_line.max_delay_seconds)
-    delay_sec = SPNet::ValueInPort.new(
-      :name => "DELAY_SEC",
+    delay_sec = ParamInPort.new(
+      :limiter => RangeLimiter.new(0.0, true, max_delay_sec, true),
       :get_value_handler => lambda { @delay_line.delay_seconds },
-      :set_value_handler => lambda { |value| @delay_line.delay_seconds = delay_limiter.call(value) }
+      :set_value_handler => lambda { |value| @delay_line.delay_seconds = value }
     )
     
-    feedback_limiter = SPCore::Limiters.make_range_limiter(0.0..1.0)
-    feedback = SPNet::ValueInPort.new(
-      :name => "FEEDBACK",
+    feedback = ParamInPort.new(
+      :limiter => RangeLimiter.new(0.0, true, 1.0, true),
       :get_value_handler => lambda { @feedback },
-      :set_value_handler => lambda { |value| @feedback = feedback_limiter.call(value) }
+      :set_value_handler => lambda { |value| @feedback = value }
     )
     
-    mix_limiter = SPCore::Limiters.make_range_limiter(0.0..1.0)
-    mix = SPNet::ValueInPort.new(
-      :name => "MIX",
+    mix = ParamInPort.new(
+      :limiter => RangeLimiter.new(0.0, true, 1.0, true),
       :get_value_handler => lambda { @mix },
-      :set_value_handler => lambda { |value| @mix = mix_limiter.call(value) }
+      :set_value_handler => lambda { |value| @mix = value }
     )
     
     algorithm = lambda do |count|
@@ -52,13 +49,19 @@ class DelayBlock < SPNet::Block
       output.send_values(values)
     end
 
-    super_args = {
-      :name => "DELAY",
+    super(
+      :sample_rate => @delay_line.sample_rate,
       :algorithm => algorithm,
-      :in_ports => [ input, delay_sec, feedback, mix ],
-      :out_ports => [ output ],
-    }
-    super(super_args)
+      :in_ports => {
+        "INPUT" => input,
+        "DELAY_SECONDS" => delay_sec,
+        "FEEDBACK" => feedback,
+        "MIX" => mix
+      },
+      :out_ports => {
+        "OUTPUT" =>  output
+      },
+    )
   end
 end
 end

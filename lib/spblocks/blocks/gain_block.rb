@@ -1,29 +1,26 @@
 require 'spnet'
 require 'spcore'
 
+include SPNet
+
 module SPBlocks
-class GainBlock < SPNet::Block
-  include Hashmake::HashMakeable
-  
+class GainBlock < Block
   GAIN_MIN = -SPCore::Gain::MAX_DB_ABS
   GAIN_MAX = SPCore::Gain::MAX_DB_ABS
   
-  HASHED_ARG_SPECS = [
-    Hashmake::ArgSpec.new(:reqd => false, :key => :gain_db, :type => Float, :default => 0.0, :validator => ->(a){ a >= GAIN_MIN && a <= GAIN_MAX } ),
-  ]
-  
-  def initialize args = {}
-    hash_make HASHED_ARG_SPECS, args
-    @gain_linear = SPCore::Gain.db_to_linear @gain_db
+  def initialize args
+    raise ArgumentError, "args does not have :sample_rate key" unless args.has_key?(:sample_rate)
 
-    input = SPNet::SignalInPort.new(:name => "INPUT")
-    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
+    @gain_db = 0.0
+    @gain_linear = 1.0
+
+    input = SignalInPort.new()
+    output = SignalOutPort.new()
     
-    limiter = SPCore::Limiters.make_range_limiter(GAIN_MIN..GAIN_MAX)
-    gain_db = SPNet::ValueInPort.new(
-      :name => "GAIN_DB", 
+    gain_db = ParamInPort.new(
+      :limiter => RangeLimiter.new(GAIN_MIN, true, GAIN_MAX, true),
       :get_value_handler => lambda { @gain_db },
-      :set_value_handler => lambda {|value| @gain_db = limiter.call(value); @gain_linear = SPCore::Gain.db_to_linear @gain_db }
+      :set_value_handler => lambda {|value| @gain_db = value; @gain_linear = SPCore::Gain.db_to_linear @gain_db }
     )
     
     algorithm = lambda do |count|
@@ -34,13 +31,12 @@ class GainBlock < SPNet::Block
       output.send_values(values)
     end
 
-    super_args = {
-      :name => "GAIN",
+    super(
+      :sample_rate => args[:sample_rate],
       :algorithm => algorithm,
-      :in_ports => [ input, gain_db ],
-      :out_ports => [ output ],
-    }
-    super(super_args)
+      :in_ports => { "INPUT" => input, "GAIN_DB" => gain_db },
+      :out_ports => { "OUTPUT" => output },
+    )
   end
 end
 end

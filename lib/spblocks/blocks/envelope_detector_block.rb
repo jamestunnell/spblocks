@@ -1,27 +1,29 @@
 require 'spnet'
 require 'spcore'
 
+include SPNet
+
 module SPBlocks
 class EnvelopeDetectorBlock < SPNet::Block
+  def initialize args
+    raise ArgumentError, "args does not have :sample_rate key" unless args.has_key?(:sample_rate)
+    sample_rate = args[:sample_rate]
+    min_time = 1.0 / sample_rate
+    @env_detector = SPCore::EnvelopeDetector.new(:sample_rate => sample_rate, :attack_time => min_time, :release_time => min_time)
+    
+    input = SPNet::SignalInPort.new
+    output = SPNet::SignalOutPort.new
 
-  def initialize hashed_args = {}
-    @env_detector = SPCore::EnvelopeDetector.new(hashed_args)
-    
-    input = SPNet::SignalInPort.new(:name => "INPUT")
-    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
-    
-    release_time_limiter = SPCore::Limiters.make_lower_limiter(0.0)
-    release_time = SPNet::ValueInPort.new(
-      :name => "RELEASE_TIME",
+    release_time = SPNet::ParamInPort.new(
+      :limiter => LowerLimiter.new(min_time, true),
       :get_value_handler => lambda { @env_detector.release_time},
-      :set_value_handler => lambda { |value| @env_detector.release_time = release_time_limiter.call(value) }
+      :set_value_handler => lambda { |value| @env_detector.release_time = value }
     )
     
-    attack_time_limiter = SPCore::Limiters.make_lower_limiter(0.0)
-    attack_time = SPNet::ValueInPort.new(
-      :name => "ATTACK_TIME",
+    attack_time = SPNet::ParamInPort.new(
+      :limiter => LowerLimiter.new(min_time, true),
       :get_value_handler => lambda { @env_detector.attack_time},
-      :set_value_handler => lambda { |value| @env_detector.attack_time = attack_time_limiter.call(value) }
+      :set_value_handler => lambda { |value| @env_detector.attack_time = value }
     )
     
     algorithm = lambda do |count|
@@ -32,13 +34,12 @@ class EnvelopeDetectorBlock < SPNet::Block
       output.send_values(values)
     end
 
-    super_args = {
-      :name => "ENVELOPE_DETECTOR",
+    super(
+      :sample_rate=> sample_rate,
       :algorithm => algorithm,
-      :in_ports => [ input, attack_time, release_time ],
-      :out_ports => [ output ],
-    }
-    super(super_args)
+      :in_ports => { "INPUT" => input, "ATTACK_TIME" => attack_time, "RELEASE_TIME" => release_time },
+      :out_ports => { "OUTPUT" => output }
+    )
   end
 end
 end

@@ -1,42 +1,40 @@
 require 'spnet'
 require 'spcore'
 
+include SPNet
+
 module SPBlocks
-class OscillatorBlock < SPNet::Block
+class OscillatorBlock < Block
 
-  def initialize hashed_args = {}
-    @oscillator = SPCore::Oscillator.new(hashed_args)
+  def initialize args = {}
+    raise ArgumentError, "args does not have :sample_rate key" unless args.has_key?(:sample_rate)
+    @oscillator = SPCore::Oscillator.new(:sample_rate => args[:sample_rate])
 
-    output = SPNet::SignalOutPort.new(:name => "OUTPUT")
-    
-    wave_type_limiter = SPCore::Limiters.make_enum_limiter(SPCore::Oscillator::WAVES)
-    wave_type = SPNet::ValueInPort.new(
-      :name => "WAVE_TYPE",
+    output = SignalOutPort.new()
+
+    wave_type = ParamInPort.new(
+      :limiter => EnumLimiter.new(SPCore::Oscillator::WAVES),
       :get_value_handler => lambda { @oscillator.wave_type },
-      :set_value_handler => lambda { |value| @oscillator.wave_type = wave_type_limiter.call(value, @oscillator.wave_type) }
+      :set_value_handler => lambda { |value| @oscillator.wave_type = value }
     )
     
-    freq_limiter = SPCore::Limiters.make_range_limiter(0.01..(@oscillator.sample_rate / 2.0))
-    frequency = SPNet::ValueInPort.new(
-      :name => "FREQUENCY",
+    frequency = ParamInPort.new(
+      :limiter => RangeLimiter.new(0.0, true, @oscillator.sample_rate / 2.0, true),
       :get_value_handler => lambda { @oscillator.frequency },
-      :set_value_handler => lambda { |value| @oscillator.frequency = freq_limiter.call(value) }
+      :set_value_handler => lambda { |value| @oscillator.frequency = value }
     )
 
-    amplitude = SPNet::ValueInPort.new(
-      :name => "AMPLITUDE",
+    amplitude = ParamInPort.new(
       :get_value_handler => lambda { @oscillator.amplitude },
       :set_value_handler => lambda { |value| @oscillator.amplitude = value }
     )
     
-    phase_offset = SPNet::ValueInPort.new(
-      :name => "PHASE_OFFSET",
+    phase_offset = ParamInPort.new(
       :get_value_handler => lambda { @oscillator.phase_offset },
       :set_value_handler => lambda { |value| @oscillator.phase_offset = value }
     )
     
-    dc_offset = SPNet::ValueInPort.new(
-      :name => "DC_OFFSET",
+    dc_offset = ParamInPort.new(
       :get_value_handler => lambda { @oscillator.dc_offset },
       :set_value_handler => lambda { |value| @oscillator.dc_offset = value }
     )
@@ -49,13 +47,12 @@ class OscillatorBlock < SPNet::Block
       output.send_values(values)
     end
 
-    super_args = {
-      :name => "DELAY",
+    super(
+      :sample_rate => @oscillator.sample_rate,
       :algorithm => algorithm,
-      :in_ports => [ wave_type, frequency, amplitude, phase_offset, dc_offset ],
-      :out_ports => [ output ],
-    }
-    super(super_args)
+      :in_ports => { "WAVE_TYPE" => wave_type, "FREQUENCY" => frequency, "AMPLITUDE" => amplitude, "PHASE_OFFSET" => phase_offset, "DC_OFFSET" => dc_offset },
+      :out_ports => { "OUTPUT" => output },      
+    )
   end
 end
 end

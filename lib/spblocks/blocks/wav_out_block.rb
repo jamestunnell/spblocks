@@ -3,40 +3,34 @@ require 'wavefile'
 
 module SPBlocks
 class WavOutBlock < SPNet::Block
-
-  include Hashmake::HashMakeable
-  
-  HASHED_ARG_SPECS = [
-    Hashmake::ArgSpec.new(:reqd => true, :key => :sample_rate, :type => Float, :validator => ->(a){ (a > 0.0) && (a.to_i == a)} ),
-    Hashmake::ArgSpec.new(:reqd => true, :key => :file_name, :type => String, :validator => ->(a){ !a.empty?() } ),
-  ]
-  
   attr_reader :file_name
 
   BITS_PER_SAMPLE = 32
   MAX_SAMPLE_VALUE = (2 **(0.size * 8 - 2) - 2)
 
-  FILE_COMMANDS = [ :open, :close ]
+  FILE_COMMANDS = [ :open, :close, :get_filename ]
   
-  def initialize hashed_args = {}
-    hash_make HASHED_ARG_SPECS, hashed_args
+  def initialize args
+    raise ArgumentError, "args does not have :sample_rate key" unless args.has_key?(:sample_rate)
+    @sample_rate = args[:sample_rate]
 
+    @file_name = ''
     @format = WaveFile::Format.new(:mono, 32, @sample_rate.to_i)
-    @writer = WaveFile::Writer.new(@file_name, @format)
+    @writer = nil
 
-    input = SPNet::SignalInPort.new(:name => "INPUT", :limits => (-1.0...1.0))
+    input = SPNet::SignalInPort.new(:limiter => RangeLimiter.new(-1.0, true, 1.0, true))
 
     file = SPNet::CommandInPort.new(
-      :name => "FILE",
       :command_map => {
         :open => lambda do |data|
-          unless @writer.closed?
+          unless @writer.nil? || @writer.closed?
             @writer.close
           end
           @file_name = data
           @writer = WaveFile::Writer.new(@file_name, @format)          
         end,
-        :close => lambda {|data| @writer.close }
+        :close => lambda {|data| @writer.close },
+        :get_filename => lambda {|data| @filename }
       }
     )
     
@@ -48,15 +42,12 @@ class WavOutBlock < SPNet::Block
         @writer.write(buffer)
       end
     end
-
-    super_args = {
-      :name => "WAV_OUT",
+    
+    super(
+      :sample_rate => @sample_rate,
       :algorithm => algorithm,
-      :in_ports => [ input, file ],
-      :out_ports => [ ],
-    }
-    super(super_args)
-
+      :in_ports => { "INPUT" => input, "FILE" => file },
+    )
   end
 end
 end

@@ -5,11 +5,12 @@ describe SPBlocks::WavOutBlock do
   describe 'writing a file' do
     it 'should write values that can be read back later' do
       filename = "file_out_block_spec.wav"
-      block = SPBlocks::WavOutBlock.new :sample_rate => 22050.0, :file_name => filename
+      block = SPBlocks::WavOutBlock.new :sample_rate => 22050.0
+      block.in_ports["FILE"].exec_command :open, filename
       values = [0.1,0.2,0.3,0.4,0.5]
-      block.find_first_port("INPUT").enqueue_values values
+      block.in_ports["INPUT"].enqueue_values values
       block.step values.count
-      block.find_first_port("FILE").exec_command :close, nil
+      block.in_ports["FILE"].exec_command :close, nil
       
       reader = WaveFile::Reader.new(filename).each_buffer(values.size) do |buffer|
         converted_samples = buffer.samples.map {|sample| sample.to_f / SPBlocks::WavOutBlock::MAX_SAMPLE_VALUE }
