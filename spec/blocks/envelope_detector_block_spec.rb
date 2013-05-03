@@ -25,7 +25,7 @@ describe SPBlocks::OscillatorBlock do
   
   context 'control port tests' do
     it 'should allow get/set of each control port' do
-      block = SPBlocks::EnvelopeDetectorBlock.new :sample_rate => 2000.0
+      block = SPBlocks::EnvelopeDetectorBlock.new :sample_rate => 2000
       @port_tests.each do |hash|
         hash.each do |name, value|
           block.in_ports[name].set_value value
@@ -39,7 +39,7 @@ describe SPBlocks::OscillatorBlock do
   context 'functional comparison test' do
     it 'should behave exactly the same as a plain SPCore::EnvelopeDetector with the same settings' do
       @port_tests.each do |hash|
-        sample_rate = 2000.0
+        sample_rate = 2000
         osc_freq = 50.0
         osc = SPCore::Oscillator.new :sample_rate => sample_rate, :frequency => osc_freq
         env_block = EnvelopeDetectorBlock.new :sample_rate => sample_rate
@@ -61,13 +61,9 @@ describe SPBlocks::OscillatorBlock do
           env_output[i] = env.process_sample osc_output[i]
         end
         
-        block_receiver = SPNet::SignalInPort.new
-        SPNet::Link.new(:from => env_block.out_ports["OUTPUT"], :to => block_receiver).activate
-        
         env_block.in_ports["INPUT"].enqueue_values osc_output
         env_block.step n
-        
-        block_receiver.queue.should eq(env_output)
+        env_block.out_ports["OUTPUT"].queue.should eq(env_output)
       end
     end
   end

@@ -28,7 +28,7 @@ class GainBlock < Block
       for i in 0...values.count
         values[i] *= @gain_linear
       end
-      output.send_values(values)
+      output.enqueue_values(values)
     end
 
     super(

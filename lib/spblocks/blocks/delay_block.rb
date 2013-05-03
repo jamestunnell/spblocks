@@ -46,7 +46,7 @@ class DelayBlock < Block
         delayed_after = @delay_line.delayed_sample
         values[i] = (input * (1.0 - @mix)) + (delayed_after * @mix)
       end
-      output.send_values(values)
+      output.enqueue_values(values)
     end
 
     super(

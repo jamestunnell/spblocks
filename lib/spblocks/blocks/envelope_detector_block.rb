@@ -31,7 +31,7 @@ class EnvelopeDetectorBlock < SPNet::Block
       for i in 0...values.count
         values[i] = @env_detector.process_sample(values[i])
       end
-      output.send_values(values)
+      output.enqueue_values(values)
     end
 
     super(

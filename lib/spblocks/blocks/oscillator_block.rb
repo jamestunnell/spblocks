@@ -44,7 +44,7 @@ class OscillatorBlock < Block
       count.times do |i|
         values[i] = @oscillator.sample
       end
-      output.send_values(values)
+      output.enqueue_values(values)
     end
 
     super(

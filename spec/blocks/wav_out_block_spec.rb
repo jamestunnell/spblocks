@@ -5,7 +5,7 @@ describe SPBlocks::WavOutBlock do
   describe 'writing a file' do
     it 'should write values that can be read back later' do
       filename = "file_out_block_spec.wav"
-      block = SPBlocks::WavOutBlock.new :sample_rate => 22050.0
+      block = SPBlocks::WavOutBlock.new :sample_rate => 22050
       block.in_ports["FILE"].exec_command :open, filename
       values = [0.1,0.2,0.3,0.4,0.5]
       block.in_ports["INPUT"].enqueue_values values

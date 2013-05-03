@@ -37,7 +37,7 @@ describe SPBlocks::OscillatorBlock do
   
   context 'control port tests' do
     it 'should allow get/set of each control port' do
-      block = SPBlocks::OscillatorBlock.new(:sample_rate => 500.0)
+      block = SPBlocks::OscillatorBlock.new(:sample_rate => 500)
       @port_tests.each do |hash|
         hash.each do |name, value|
           block.in_ports[name].set_value value
@@ -51,17 +51,14 @@ describe SPBlocks::OscillatorBlock do
   context 'functional comparison test' do
     it 'should behave exactly the same as a plain Oscillator with the same settings' do
       @port_tests.each do |hash|
-        block = SPBlocks::OscillatorBlock.new :sample_rate => 500.0
-        osc = SPCore::Oscillator.new :sample_rate => 500.0
+        block = SPBlocks::OscillatorBlock.new :sample_rate => 500
+        osc = SPCore::Oscillator.new :sample_rate => 500
         
         hash.each do |name, value|
           osc.send((name.downcase + '=').to_sym, value)
           block.in_ports[name].set_value value
         end
         
-        block_receiver = SPNet::SignalInPort.new
-        SPNet::Link.new(:from => block.out_ports["OUTPUT"], :to => block_receiver).activate
-
         n = 50
         block.step n
         
@@ -70,7 +67,7 @@ describe SPBlocks::OscillatorBlock do
           osc_output[i] = osc.sample
         end
         
-        block_receiver.queue.should eq(osc_output)
+        block.out_ports["OUTPUT"].queue.should eq(osc_output)
       end
     end
   end

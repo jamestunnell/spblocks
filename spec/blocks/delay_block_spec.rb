@@ -3,7 +3,7 @@ require File.expand_path(File.dirname(__FILE__) + '/../spec_helper')
 describe SPBlocks::DelayBlock do
   describe '.new' do
     before :each do
-      @block = SPBlocks::DelayBlock.new :sample_rate => 200.0
+      @block = SPBlocks::DelayBlock.new :sample_rate => 200
     end
     
     it 'should have default delay time of 0.0 sec' do
@@ -11,18 +11,16 @@ describe SPBlocks::DelayBlock do
     end
     
     it 'should pass through values unchanged' do
-      reciever = SPNet::SignalInPort.new
-      SPNet::Link.new(:from => @block.out_ports["OUTPUT"], :to => reciever).activate
       values = [ 1.0, 2.0, -1.0 ]
       @block.in_ports["INPUT"].enqueue_values values
       @block.step 3
-      reciever.queue.should eq(values)
+      @block.out_ports["OUTPUT"].queue.should eq(values)
     end
   end
   
   describe "DELAY_SECONDS port" do
     it 'should set the delay in seconds' do
-      sample_rate = 2000.0
+      sample_rate = 2000
       5.times do
         block = SPBlocks::DelayBlock.new(:sample_rate => sample_rate)
         
@@ -30,15 +28,11 @@ describe SPBlocks::DelayBlock do
         delay_sec = delay_samples / sample_rate
         rand_sample = rand
 
-        reciever = SPNet::SignalInPort.new
-        SPNet::Link.new(:from => block.out_ports["OUTPUT"], :to => reciever).activate
-        
         values = [rand_sample] + Array.new(delay_samples, 0.0)
         block.in_ports["INPUT"].enqueue_values values
         block.in_ports["DELAY_SECONDS"].set_value(delay_sec)
-        block.step delay_samples + 1
-        
-        reciever.queue.first.should eq(rand_sample)
+        block.step delay_samples + 1        
+        block.out_ports["OUTPUT"].queue.first.should eq(rand_sample)
       end
     end
   end
